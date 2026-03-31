@@ -162,46 +162,54 @@ classDiagram
 ## 4. Runtime architecture
 
 ```mermaid
-architecture-beta
-    group user_layer(cloud)[User Layer]
-    service terminal(server)[Windows Terminal / CMD] in user_layer
-    service user(internet)[User] in user_layer
+flowchart LR
+    %% User & terminal
+    subgraph USER_LAYER[User Layer]
+        user[User]
+        terminal[Windows Terminal / CMD]
+        user --> terminal
+    end
 
-    group app_layer(server)[Python Application Layer]
-    service mainpy(server)[main.py CLI Controller] in app_layer
-    service loader(server)[loader.py] in app_layer
-    service embedder(server)[embedder.py] in app_layer
-    service retriever(server)[retriever.py] in app_layer
-    service generator(server)[generator.py] in app_layer
+    %% Python app processes
+    subgraph APP_LAYER[Python Application Layer]
+        mainpy[main.py\nCLI Controller]
+        loader[loader.py\nDocument Loader]
+        embedder[embedder.py\nEmbedder]
+        retriever[retriever.py\nRetriever]
+        generator[generator.py\nRAG Generator]
+    end
 
-    group data_layer(database)[Data + Storage Layer]
-    service docs(disk)[Local Documents Folder\nPDF HTML TXT CSV] in data_layer
-    service chroma(database)[ChromaDB Vector Store] in data_layer
+    %% Data & storage
+    subgraph DATA_LAYER[Data + Storage Layer]
+        docs[Local Documents Folder\nPDF / HTML / TXT / CSV]
+        chroma[ChromaDB\nVector Store]
+    end
 
-    group ml_layer(cloud)[Model Layer]
-    service hf(server)[Sentence-Transformers\nEmbedding Model] in ml_layer
-    service ollama(server)[Ollama Local Server] in ml_layer
-    service deepseek(server)[DeepSeek-R1 Model] in ml_layer
+    %% Model layer
+    subgraph MODEL_LAYER[Model Layer]
+        hf[Sentence-Transformers\nEmbedding Model]
+        ollama[Ollama Local Server]
+        deepseek[DeepSeek-R1 Model]
+    end
 
-    user:R --> L:terminal
-    terminal:R --> L:mainpy
+    %% Edges: user -> app entry
+    terminal --> mainpy
 
-    mainpy:B --> T:loader
-    loader:R --> L:docs
+    %% App layer flows
+    mainpy --> loader
+    loader --> docs
 
-    loader:B --> T:embedder
-    embedder:R --> L:hf
-    embedder:B --> T:chroma
+    loader --> embedder
+    embedder --> hf
+    embedder --> chroma
 
-    mainpy:B --> T:retriever
-    retriever:R --> L:chroma
+    mainpy --> retriever
+    retriever --> chroma
 
-    mainpy:B --> T:generator
-    generator:R --> L:retriever
-    generator:B --> T:ollama
-    ollama:R --> L:deepseek
-```
-
+    mainpy --> generator
+    generator --> retriever
+    generator --> ollama
+    ollama --> deepseek```
 ---
 
 ## 5. Prerequisites
