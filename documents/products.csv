@@ -1,0 +1,6 @@
+product_id,name,price_usd,category,description
+P001,LapBook Pro 14,1299.00,Laptop,14-inch display 16GB RAM 512GB SSD Intel i7
+P002,LapBook Air 13,999.00,Laptop,13-inch display 8GB RAM 256GB SSD Intel i5
+P003,WirelessBuds X,149.00,Audio,Noise-cancelling wireless earbuds 30hr battery
+P004,MechaKey RGB,89.00,Keyboard,Mechanical keyboard with RGB backlighting
+P005,UltraMouse Pro,59.00,Mouse,Ergonomic wireless mouse 2000 DPI

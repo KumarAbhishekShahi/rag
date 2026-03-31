@@ -1,0 +1,18 @@
+# RAG Complete Guide — Sample Document
+
+## What is RAG?
+Retrieval-Augmented Generation (RAG) is a technique that enhances Large Language Models
+by retrieving relevant context from external knowledge bases before generating a response.
+
+## Why use RAG?
+1. Reduces hallucinations by grounding responses in real documents.
+2. Enables LLMs to answer questions about private or domain-specific data.
+3. Keeps knowledge up to date without retraining the model.
+
+## Core Components
+- Document Loaders: Ingest PDFs, HTML, text, CSV, etc.
+- Text Splitters: Break documents into manageable chunks.
+- Embeddings: Convert text chunks into dense vectors.
+- Vector Store: Store and search vectors (e.g., ChromaDB).
+- Retriever: Find the most relevant chunks for a query.
+- Generator: Feed retrieved context to an LLM to produce the final answer.
