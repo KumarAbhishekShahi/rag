@@ -17,7 +17,194 @@ You are building a local RAG application that can:
 
 ---
 
-## 2. Prerequisites
+## 2. RAG flow
+
+```mermaid
+flowchart TD
+    A[Start the RAG Application] --> B{Which mode did the user choose?}
+
+    B -->|Demo Mode| C[Load built-in sample text]
+    B -->|Ingest Mode| D[Read file or folder path from CLI]
+    B -->|Query Mode| E[Load existing vector store from disk]
+    B -->|No Arguments| F[Start interactive question loop]
+
+    C --> G[Convert demo text into LangChain Document objects]
+    D --> H{Is the input a single file or directory?}
+    H -->|Single File| I[Detect file extension and choose loader]
+    H -->|Directory| J[Scan directory recursively for supported files]
+
+    I --> K[Load file content: PDF / HTML / TXT / CSV]
+    J --> K
+
+    K --> L[Split document content into chunks]
+    G --> L
+
+    L --> M[Generate embeddings for each chunk]
+    M --> N[Store vectors in ChromaDB]
+    N --> O[Create retriever from vector store]
+    E --> O
+
+    O --> P[Build RAG chain]
+    P --> Q[Prompt user for a question]
+    F --> Q
+
+    Q --> R{Did the user type quit/exit/q?}
+    R -->|Yes| S[End program]
+    R -->|No| T[Search vector database for relevant chunks]
+
+    T --> U[Collect top matching chunks]
+    U --> V[Build prompt with context + user question]
+    V --> W[Send prompt to Ollama model]
+    W --> X[Generate final answer]
+    X --> Y[Print answer to the terminal]
+    Y --> Q
+```
+
+---
+
+## 3. Component structure
+
+```mermaid
+classDiagram
+    class MainCLI {
+        +parse_args()
+        +run_demo()
+        +interactive_mode()
+        +main()
+    }
+
+    class Loader {
+        +load_file(path)
+        +load_directory(path)
+        +load_pdf(path)
+        +load_html(path)
+        +load_text(path)
+        +load_csv(path)
+        +load_text_string(text, source)
+    }
+
+    class TextSplitter {
+        +split_documents(docs)
+        +chunk_size
+        +chunk_overlap
+    }
+
+    class Embedder {
+        +_get_embeddings()
+        +build_vectorstore(documents, persist_directory, collection_name)
+        +load_vectorstore(persist_directory, collection_name)
+    }
+
+    class VectorStore {
+        +from_documents()
+        +persist()
+        +search()
+    }
+
+    class Retriever {
+        +get_retriever(vectorstore, search_type, k, fetch_k, lambda_mult)
+        +retrieve_with_scores(vectorstore, query, k)
+    }
+
+    class Generator {
+        +_get_llm()
+        +build_rag_chain(retriever)
+        +ask(chain, question)
+        +_format_docs(docs)
+    }
+
+    class PromptTemplate {
+        +RAG_PROMPT
+    }
+
+    class OllamaLLM {
+        +model
+        +base_url
+        +generate()
+    }
+
+    class ChromaDB {
+        +store_embeddings()
+        +load_collection()
+        +similarity_search()
+    }
+
+    class Documents {
+        +PDF
+        +HTML
+        +TXT
+        +CSV
+    }
+
+    class User {
+        +ask_question()
+        +read_answer()
+    }
+
+    User --> MainCLI : uses
+    MainCLI --> Loader : loads documents through
+    Loader --> TextSplitter : splits text with
+    Loader --> Documents : reads
+    MainCLI --> Embedder : builds vector store through
+    Embedder --> VectorStore : creates/loads
+    VectorStore --> ChromaDB : implemented by
+    MainCLI --> Retriever : creates
+    Retriever --> VectorStore : queries
+    MainCLI --> Generator : builds chain through
+    Generator --> PromptTemplate : uses
+    Generator --> OllamaLLM : sends prompt to
+    Generator --> Retriever : gets context from
+    MainCLI --> User : interacts with
+```
+
+---
+
+## 4. Runtime architecture
+
+```mermaid
+architecture-beta
+    group user_layer(cloud)[User Layer]
+    service terminal(server)[Windows Terminal / CMD] in user_layer
+    service user(internet)[User] in user_layer
+
+    group app_layer(server)[Python Application Layer]
+    service mainpy(server)[main.py CLI Controller] in app_layer
+    service loader(server)[loader.py] in app_layer
+    service embedder(server)[embedder.py] in app_layer
+    service retriever(server)[retriever.py] in app_layer
+    service generator(server)[generator.py] in app_layer
+
+    group data_layer(database)[Data + Storage Layer]
+    service docs(disk)[Local Documents Folder\nPDF HTML TXT CSV] in data_layer
+    service chroma(database)[ChromaDB Vector Store] in data_layer
+
+    group ml_layer(cloud)[Model Layer]
+    service hf(server)[Sentence-Transformers\nEmbedding Model] in ml_layer
+    service ollama(server)[Ollama Local Server] in ml_layer
+    service deepseek(server)[DeepSeek-R1 Model] in ml_layer
+
+    user:R --> L:terminal
+    terminal:R --> L:mainpy
+
+    mainpy:B --> T:loader
+    loader:R --> L:docs
+
+    loader:B --> T:embedder
+    embedder:R --> L:hf
+    embedder:B --> T:chroma
+
+    mainpy:B --> T:retriever
+    retriever:R --> L:chroma
+
+    mainpy:B --> T:generator
+    generator:R --> L:retriever
+    generator:B --> T:ollama
+    ollama:R --> L:deepseek
+```
+
+---
+
+## 5. Prerequisites
 
 Before starting, make sure you have:
 - Windows machine
@@ -27,7 +214,7 @@ Before starting, make sure you have:
 
 ---
 
-## 3. Install Python
+## 6. Install Python
 
 1. Download Python from the official Python website.
 2. During installation, check **Add Python to PATH**.
@@ -45,7 +232,7 @@ py --version
 
 ---
 
-## 4. Install Ollama
+## 7. Install Ollama
 
 1. Open browser and go to the official Ollama website.
 2. Download the Windows installer.
@@ -58,11 +245,11 @@ py --version
 ollama --version
 ```
 
-If that works, Ollama is installed correctly. [web:223][web:144]
+If that works, Ollama is installed correctly.
 
 ---
 
-## 5. Check Ollama is working
+## 8. Check Ollama is working
 
 Run:
 
@@ -70,21 +257,19 @@ Run:
 ollama list
 ```
 
-This shows models already available on your machine. [web:144]
+This shows models already available on your machine.
 
 If no models are shown, that is okay. It means Ollama is installed but no model has been downloaded yet.
 
 ---
 
-## 6. Pull your first model
+## 9. Pull your first model
 
 To download DeepSeek-R1, run:
 
 ```bat
 ollama pull deepseek-r1:8b
 ```
-
-This downloads the model to your local machine. [web:214][web:218]
 
 You can use another exact model tag if your machine is smaller or larger.
 
@@ -94,11 +279,11 @@ After download finishes, check again:
 ollama list
 ```
 
-You should see `deepseek-r1:8b` in the list. [web:144]
+You should see `deepseek-r1:8b` in the list.
 
 ---
 
-## 7. Test the model directly in Ollama
+## 10. Test the model directly in Ollama
 
 Before using Python, test the model directly:
 
@@ -118,7 +303,7 @@ Type `/bye` or close the session when done.
 
 ---
 
-## 8. Create the project folder
+## 11. Create the project folder
 
 ```bat
 mkdir rag-complete-guide
@@ -127,7 +312,7 @@ cd rag-complete-guide
 
 ---
 
-## 9. Create a virtual environment
+## 12. Create a virtual environment
 
 ```bat
 python -m venv .venv
@@ -136,14 +321,14 @@ python -m venv .venv
 Activate it:
 
 ```bat
-.\.venv\Scripts\activate.bat
+.\\.venv\\Scripts\\activate.bat
 ```
 
 You should now see `(.venv)` at the beginning of your prompt.
 
 ---
 
-## 10. Upgrade pip
+## 13. Upgrade pip
 
 ```bat
 python -m pip install --upgrade pip
@@ -151,7 +336,7 @@ python -m pip install --upgrade pip
 
 ---
 
-## 11. Create or update `requirements.txt`
+## 14. Create or update `requirements.txt`
 
 Use this content:
 
@@ -178,7 +363,7 @@ pytest>=8.0.0
 
 ---
 
-## 12. Install Python dependencies
+## 15. Install Python dependencies
 
 ```bat
 python -m pip install -r requirements.txt
@@ -188,7 +373,7 @@ This may take a few minutes the first time.
 
 ---
 
-## 13. Important code fixes
+## 16. Important code fixes
 
 ### In `rag/loader.py`
 Use:
@@ -204,11 +389,11 @@ Use:
 from langchain_huggingface import HuggingFaceEmbeddings
 ```
 
-These changes match the newer LangChain package structure. [web:109][web:186]
+These changes match the newer LangChain package structure.
 
 ---
 
-## 14. Set environment variables for the model
+## 17. Set environment variables for the model
 
 In CMD:
 
@@ -232,7 +417,7 @@ deepseek-r1:8b
 
 ---
 
-## 15. Run demo mode
+## 18. Run demo mode
 
 ```bat
 python main.py --demo
@@ -247,12 +432,12 @@ This should:
 
 ---
 
-## 16. Run with your own documents
+## 19. Run with your own documents
 
 Put your files inside `documents/` and run:
 
 ```bat
-python main.py --ingest .\documents
+python main.py --ingest .\\documents
 ```
 
 Then either run:
@@ -269,7 +454,7 @@ python main.py --query "What is the refund policy?"
 
 ---
 
-## 17. Very common errors and fixes
+## 20. Very common errors and fixes
 
 ### `ModuleNotFoundError: No module named 'langchain_core'`
 Install dependencies again:
@@ -317,11 +502,11 @@ set LLM_MODEL=deepseek-r1:8b
 
 ---
 
-## 18. Recommended beginner run sequence every time
+## 21. Recommended beginner run sequence every time
 
 ```bat
-cd C:\Users\abhis\rag-complete-guide
-.\.venv\Scripts\activate.bat
+cd C:\\Users\\abhis\\rag-complete-guide
+.\\.venv\\Scripts\\activate.bat
 ollama list
 set LLM_BACKEND=ollama
 set LLM_MODEL=deepseek-r1:8b
@@ -330,7 +515,7 @@ python main.py --demo
 
 ---
 
-## 19. Learning progression
+## 22. Learning progression
 
 Learn the project in this order:
 1. Ollama installation
@@ -346,7 +531,7 @@ Learn the project in this order:
 
 ---
 
-## 20. Final note
+## 23. Final note
 
 If the system fails, always check these five things first:
 1. Is the virtual environment activated?
