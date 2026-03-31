@@ -163,14 +163,12 @@ classDiagram
 
 ```mermaid
 flowchart LR
-    %% User & terminal
     subgraph USER_LAYER[User Layer]
         user[User]
         terminal[Windows Terminal / CMD]
         user --> terminal
     end
 
-    %% Python app processes
     subgraph APP_LAYER[Python Application Layer]
         mainpy[main.py\nCLI Controller]
         loader[loader.py\nDocument Loader]
@@ -179,23 +177,18 @@ flowchart LR
         generator[generator.py\nRAG Generator]
     end
 
-    %% Data & storage
     subgraph DATA_LAYER[Data + Storage Layer]
         docs[Local Documents Folder\nPDF / HTML / TXT / CSV]
         chroma[ChromaDB\nVector Store]
     end
 
-    %% Model layer
     subgraph MODEL_LAYER[Model Layer]
         hf[Sentence-Transformers\nEmbedding Model]
         ollama[Ollama Local Server]
         deepseek[DeepSeek-R1 Model]
     end
 
-    %% Edges: user -> app entry
     terminal --> mainpy
-
-    %% App layer flows
     mainpy --> loader
     loader --> docs
 
@@ -209,8 +202,10 @@ flowchart LR
     mainpy --> generator
     generator --> retriever
     generator --> ollama
-    ollama --> deepseek```
----
+    ollama --> deepseek
+```
+
+## 5. Prerequisites
 
 ## 5. Prerequisites
 
